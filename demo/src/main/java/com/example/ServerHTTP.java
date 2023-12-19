@@ -4,15 +4,12 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Date;
-import java.util.Scanner;
 
 public class ServerHTTP {
     public static void main(String[] args) {
@@ -22,35 +19,56 @@ public class ServerHTTP {
             while(true){
                 Socket socket = server.accept();
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                PrintWriter out = new PrintWriter(socket.getOutputStream());
+                DataOutputStream out = new DataOutputStream(socket.getOutputStream());
 
+                String line = in.readLine();
+                //System.out.println(line);
+                String file_path = line.split(" ")[1];
+                //System.out.println(file_path);
                 do{
-                    String line = in.readLine();
+                    line = in.readLine();
                     System.out.println(line);
-                    if(line == null || line.isEmpty())
-                        break;
-                }while(true);
+                }while(!line.isEmpty());
+                
 
-                sendBinaryFile(socket, in);
+                System.out.println("ciccio");
+                String [] parts = file_path.split("\\.");
+                String extension = parts[parts.length - 1];
+                System.out.println(extension);
+                if(file_path.endsWith("/")){
+                    file_path = "index.html";
+                }
+                System.out.println(file_path);
+                File file = new File("/htdocs" + file_path);
+
+                if(file.exists()){
+                    sendBinaryFile(file, extension, file_path, out);
+                }else{
+                    if(!file_path.endsWith("/")){
+                        out.writeBytes("HTTP/1.1 301 Move Permanently\n");
+                        out.writeBytes("Location: /htdocs/\n");
+                        out.writeBytes("\n");
+                    }else{
+                        out.writeBytes("HTTP/1.1 404 NOT FOUND\n");
+                        out.writeBytes("Content-Lenght: " + file.length() + "\n");
+                        out.writeBytes("Content-Type: text/plain; charset=utf-8\n");
+                        out.writeBytes("\n");
+                        out.writeBytes("File not found\n");
+                    }
+                }
 
                 out.flush();
                 socket.close();
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            System.out.println("-------" + e.getMessage());
         }
     }
 
-    private static void sendBinaryFile(Socket socket, BufferedReader in) {
+    private static void sendBinaryFile(File file, String extension, String file_path, DataOutputStream output) throws IOException{
         try {
-            String inn = in.readLine();
-            String file_path = "." + inn.split(" ")[1];
-            File fileLettura = new File(file_path);
-            String extension = file_path.split("\\.")[file_path.length()];
-
-            DataOutputStream output = new DataOutputStream(socket.getOutputStream());
             output.writeBytes("HTTP/1.1 200 OK" + "\n");
-            output.writeBytes("Content-Lenght: " + fileLettura.length() + "\n");
+            output.writeBytes("Content-Lenght: " + file.length() + "\n");
             output.writeBytes("Server: Java HTTP Server from YvngLore: 1.2" + "\n");
             output.writeBytes("Date: " + new Date() + "\n");
             switch (extension) {
@@ -81,8 +99,8 @@ public class ServerHTTP {
             }
             output.writeBytes("\n");
 
-            File file = new File(file_path);
-            InputStream input = new FileInputStream(file);
+            File fileOut = new File("htdocs" + file_path);
+            InputStream input = new FileInputStream(fileOut);
             byte[] buff = new byte[8192];
             int n;
             while((n = input.read(buff)) != -1){
@@ -90,11 +108,11 @@ public class ServerHTTP {
             }
             input.close();
         } catch (Exception e) {
-            //output.writeBytes("HTTP/1.1 404 NOT FOUND\n");
+            output.writeBytes("HTTP/1.1 404 NOT FOUND\n");
         }
     }   
 
-    private static void sendFile(BufferedReader in, PrintWriter out){
+    /*private static void sendFile(BufferedReader in, PrintWriter out){
         try {
             String input = in.readLine();
             String file_path = "." + input.split(" ")[1];
@@ -120,5 +138,5 @@ public class ServerHTTP {
         } catch(IOException ex){
             out.println(ex.getMessage());
         }
-    }
+    }*/
 }
